@@ -1,0 +1,168 @@
+# RawOS apt package manifest - one package per line, '#' comments allowed.
+# Consumed by chroot-hooks/10-apt-packages.sh. Keep grouped and alphabetical-ish.
+
+# ── Base system / boot / live ────────────────────────────────────────────────
+ubuntu-standard
+linux-generic              # kernel (minbase debootstrap ships none)
+initramfs-tools
+casper                     # live-boot support
+discover
+laptop-detect
+os-prober
+network-manager
+network-manager-gnome
+wpasupplicant             # wifi auth backend (so NetworkManager can do wireless)
+rfkill                    # unblock wifi/bluetooth radios
+iw                        # wireless tooling
+iputils-ping              # `ping` (minbase debootstrap doesn't include it)
+iputils-tracepath
+dnsutils                  # nslookup/dig
+net-tools
+resolvconf
+locales
+grub-common
+grub-pc-bin
+grub-efi-amd64-bin
+grub-efi-amd64-signed
+shim-signed
+plymouth
+plymouth-themes
+memtest86+
+
+# ── Desktop: XFCE ────────────────────────────────────────────────────────────
+xfce4
+xfce4-goodies
+xfce4-terminal
+xfce4-whiskermenu-plugin
+lightdm
+lightdm-gtk-greeter
+lightdm-gtk-greeter-settings
+xorg
+dbus-x11
+network-manager-gnome
+blueman
+pavucontrol
+pulseaudio
+# Qt6 xcb platform plugin needs libxcb-cursor0 at runtime. RawView's frozen Qt
+# bundle does NOT ship it and the deb doesn't depend on it, so without this the
+# xcb plugin fails to load and RawView aborts on launch ("Could not load the Qt
+# platform plugin xcb"). Also covers system Qt6 apps (Cutter/DIE).
+libxcb-cursor0
+
+# ── Theming (Tokyo Night surfaces) ───────────────────────────────────────────
+qt5-style-kvantum
+qt5-style-kvantum-themes
+qt6ct
+qt5ct
+papirus-icon-theme
+greybird-gtk-theme         # guaranteed dark GTK+xfwm theme (Greybird-dark); recommends
+                           # are skipped in the build, so it must be listed explicitly
+fonts-jetbrains-mono
+fonts-firacode
+fonts-noto
+yad
+zenity
+# fastfetch is NOT in noble apt - installed from its GitHub .deb in 20-github-tools.sh
+
+# ── Graphical installer ──────────────────────────────────────────────────────
+calamares
+calamares-settings-ubuntu-common
+
+# ── Reverse engineering: disassembly / decompilation ─────────────────────────
+# rizin/cutter are NOT in noble apt. radare2 (below) is the r2 CLI; Cutter is
+# installed as an upstream AppImage in 20-github-tools.sh (it bundles the rizin engine).
+radare2
+
+# ── Debuggers / tracing ──────────────────────────────────────────────────────
+gdb
+edb-debugger
+strace
+ltrace
+gdbserver
+
+# ── Static analysis / triage ─────────────────────────────────────────────────
+file
+binwalk
+yara
+python3-yara
+exiftool
+hexedit
+wxhexeditor
+upx-ucl
+p7zip-full
+p7zip-rar
+ssdeep
+libfuzzy-dev
+clamav
+clamav-freshclam
+foremost
+xxd
+poppler-utils
+
+# ── Dynamic / network analysis (used inside isolation) ───────────────────────
+wireshark
+tshark
+tcpdump
+netcat-openbsd
+inetsim
+dnsmasq-base
+bind9-dnsutils
+
+# ── Virtualization / detonation host ─────────────────────────────────────────
+qemu-system-x86
+qemu-utils
+libvirt-daemon-system
+libvirt-clients
+virt-manager
+bridge-utils
+ovmf
+
+# ── Wine (Windows/PE work) ───────────────────────────────────────────────────
+wine
+wine64
+winetricks
+
+# ── Python / scripting toolchain ─────────────────────────────────────────────
+python3
+python3-pip
+python3-venv
+python3-dev
+python3-pefile
+python3-capstone
+python3-unicorn
+build-essential
+pkg-config
+
+# ── Convenience / dev ────────────────────────────────────────────────────────
+git
+curl
+wget
+tmux
+neovim
+jq
+htop
+unzip
+zip
+ca-certificates
+gnupg
+software-properties-common
+
+# ── Web browser ──────────────────────────────────────────────────────────────
+# NOTE: Firefox is installed conditionally in 10-apt (only if the real Mozilla
+# repo is reachable) to avoid pulling Ubuntu's snap-shim, which hangs in a live
+# ISO. Epiphany is the guaranteed, snap-free browser that always works.
+epiphany-browser
+
+# ── Installer + session plumbing ─────────────────────────────────────────────
+mate-polkit                # a polkit auth agent (auto-autostarts) so the graphical
+                           # installer / pkexec actually gets an auth prompt in XFCE
+xfce4-power-manager        # lets us disable sleep/blank cleanly (see 75-usability)
+spice-vdagent              # host<->guest clipboard + auto-resize in QEMU/SPICE VMs
+# tools for the built-in rawos-installer (the reliable install path)
+parted
+gdisk
+dosfstools
+rsync
+efibootmgr
+python3-gi                 # the graphical installer is a GTK3 app
+gir1.2-gtk-3.0

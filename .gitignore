@@ -1,0 +1,24 @@
+# Build working tree and outputs (large, regenerated)
+/work/
+/out/
+/.cache/
+
+# Vendored RawView is pulled as a submodule / at build time
+/vendor/RawView/
+
+# Python bytecode (the installer is a Python app)
+__pycache__/
+*.py[cod]
+
+# Secrets / local env - never commit tokens or keys
+.env
+.env.*
+*.token
+rawview.env
+
+# Editor / OS cruft
+*.swp
+*~
+.vscode/
+.idea/
+.DS_Store

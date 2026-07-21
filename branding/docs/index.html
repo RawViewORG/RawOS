@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RawOS Documentation</title>
+<style>
+  :root {
+    --bg: #1a1b26; --bg2: #16161e; --panel: #1f2335;
+    --fg: #c0caf5; --mute: #565f89; --accent: #7aa2f7;
+    --green: #9ece6a; --red: #f7768e; --yellow: #e0af68; --purple: #bb9af7;
+    --border: #2a2e42;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: "Noto Sans", system-ui, sans-serif; line-height: 1.6;
+  }
+  .layout { display: flex; min-height: 100vh; }
+  nav {
+    width: 240px; flex: 0 0 240px; background: var(--bg2);
+    border-right: 1px solid var(--border); padding: 24px 0;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  }
+  nav .brand {
+    font-size: 26px; font-weight: 700; padding: 0 22px 18px;
+  }
+  nav .brand span { color: var(--accent); }
+  nav a {
+    display: block; padding: 8px 22px; color: var(--mute);
+    text-decoration: none; border-left: 3px solid transparent;
+  }
+  nav a:hover { color: var(--fg); border-left-color: var(--accent); background: rgba(122,162,247,0.08); }
+  main { flex: 1; padding: 40px 48px; max-width: 900px; }
+  h1 { font-size: 32px; margin-top: 0; }
+  h2 {
+    font-size: 23px; margin-top: 44px; padding-top: 20px;
+    border-top: 1px solid var(--border); color: var(--accent);
+  }
+  h3 { font-size: 18px; margin-top: 28px; color: var(--purple); }
+  a { color: var(--accent); }
+  code {
+    background: var(--bg2); color: var(--green); padding: 2px 6px;
+    border-radius: 4px; font-family: "JetBrains Mono", monospace; font-size: 0.92em;
+  }
+  pre {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto;
+  }
+  pre code { background: none; padding: 0; color: var(--fg); }
+  .note, .warn {
+    border-radius: 8px; padding: 14px 18px; margin: 20px 0;
+    border: 1px solid var(--border); background: var(--panel);
+  }
+  .warn { border-color: var(--red); }
+  .warn strong, .warn b { color: var(--red); }
+  .note strong { color: var(--yellow); }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--accent); }
+  ul { padding-left: 22px; }
+  footer { margin-top: 60px; color: var(--mute); font-size: 0.9em; border-top: 1px solid var(--border); padding-top: 20px; }
+  @media (max-width: 720px) {
+    .layout { flex-direction: column; }
+    nav { width: 100%; height: auto; position: static; }
+    main { padding: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav>
+    <div class="brand">Raw<span>OS</span></div>
+    <a href="#about">About RawOS</a>
+    <a href="#first">First boot</a>
+    <a href="#rawview">RawView</a>
+    <a href="#toolkit">The toolkit</a>
+    <a href="#detonation">Safe detonation</a>
+    <a href="#install">Installing to disk</a>
+    <a href="#desktop">Desktop and networking</a>
+    <a href="#clipboard">VM clipboard</a>
+    <a href="#trouble">Troubleshooting</a>
+  </nav>
+  <main>
+    <h1>RawOS Documentation</h1>
+    <p>RawOS is a malware reverse-engineering workstation built around
+    <b>RawView</b>. It ships a curated toolkit for dissecting binaries, an
+    isolated environment for detonating samples, and Wine for Windows/PE work,
+    all on an Ubuntu base with an XFCE Tokyo Night desktop.</p>
+
+    <div class="warn">
+      <strong>Handle malware with care.</strong> Only run live samples inside an
+      isolated VM using the <code>rawos-isolated</code> network. Snapshot before
+      you detonate, and keep real network access off. RawOS makes this safer, but
+      it does not make careless handling safe.
+    </div>
+
+    <h2 id="about">About RawOS</h2>
+    <p>RawOS bundles everything an analyst needs to go from a raw sample to a
+    finished report without hunting for tools or configuring Ghidra by hand:</p>
+    <ul>
+      <li><b>RawView</b> preinstalled, with Ghidra 12 and a Temurin JDK already wired up.</li>
+      <li>A static, dynamic, and network analysis toolkit (see <a href="#toolkit">The toolkit</a>).</li>
+      <li>Virtualization tooling (QEMU/KVM, libvirt, virt-manager) plus an isolated detonation network.</li>
+      <li>Wine for running and debugging Windows binaries.</li>
+      <li>A safe-by-default firewall that denies inbound connections.</li>
+    </ul>
+
+    <h2 id="first">First boot</h2>
+    <p>When the desktop loads, the <b>Welcome to RawOS</b> window opens with the
+    safety notes and quick links. It has:</p>
+    <ul>
+      <li><b>Open RawView</b>, to launch the analysis app.</li>
+      <li><b>Docs</b>, to open this documentation.</li>
+      <li>A <b>Don't show this again</b> checkbox. Tick it and the window stops
+      appearing automatically at login.</li>
+    </ul>
+    <p>You can reopen the welcome window any time from the applications menu
+    (<b>Welcome to RawOS</b>), and this documentation from
+    <b>RawOS Documentation</b>, even after you have dismissed the welcome window.</p>
+    <div class="note">
+      <strong>Tip.</strong> The dismiss setting is per user. It is stored at
+      <code>~/.config/rawos/no-welcome</code>. Delete that file to bring the
+      welcome window back at login.
+    </div>
+
+    <h2 id="rawview">RawView</h2>
+    <p>Launch RawView from the applications menu or by running <code>rawview</code>
+    in a terminal. Ghidra and the JDK are already installed and configured, so
+    there is no first-run download.</p>
+    <h3>Enabling the AI agent</h3>
+    <p>RawView includes an AI assistant. To use it, open
+    <b>File &gt; Settings</b> and paste your own Anthropic API key. The key is
+    yours; RawOS does not ship one.</p>
+    <h3>Where things live</h3>
+    <table>
+      <tr><th>Path</th><th>What it is</th></tr>
+      <tr><td><code>/opt/ghidra</code></td><td>Bundled Ghidra install</td></tr>
+      <tr><td><code>/opt/jdk</code></td><td>Bundled Temurin JDK</td></tr>
+      <tr><td><code>/etc/rawview/rawview.env</code></td><td>System config RawView reads at startup</td></tr>
+    </table>
+
+    <h2 id="toolkit">The toolkit</h2>
+    <p>A selection of what is preinstalled. Most are on your <code>PATH</code>;
+    launch the graphical ones from the menu.</p>
+    <table>
+      <tr><th>Category</th><th>Tools</th></tr>
+      <tr><td>Disassembly / decompile</td><td>RawView (Ghidra), radare2, Cutter</td></tr>
+      <tr><td>Debuggers / tracing</td><td>gdb, edb-debugger, strace, ltrace, x64dbg (via Wine)</td></tr>
+      <tr><td>Static / triage</td><td>file, binwalk, yara, capa, floss, Detect-It-Easy, upx, ssdeep, exiftool, hexedit, wxHexEditor, clamav</td></tr>
+      <tr><td>Dynamic / network</td><td>Wireshark, tshark, tcpdump, netcat, inetsim</td></tr>
+      <tr><td>Scripting</td><td>Python with pefile, capstone, unicorn, and more in <code>/opt/rawos-venv</code></td></tr>
+      <tr><td>Windows / PE</td><td>Wine, winetricks</td></tr>
+    </table>
+
+    <h2 id="detonation">Safe detonation</h2>
+    <p>Never run an unknown sample on the RawOS host directly. Detonate inside a
+    disposable guest VM attached to the isolated network.</p>
+    <ol>
+      <li>Open <b>virt-manager</b> from the menu.</li>
+      <li>Create or import your analysis guest (bring your own Windows image; it
+      cannot be redistributed with RawOS).</li>
+      <li>Set the guest's network to <b>rawos-isolated</b>. This network has no
+      route to the internet; guests can reach each other and the host only.</li>
+      <li>Take a snapshot of the clean state.</li>
+      <li>Detonate, observe, then revert to the snapshot.</li>
+    </ol>
+    <div class="note">
+      <strong>Fake internet.</strong> To make a sample believe it is online,
+      point the guest at <code>inetsim</code> running on the host. This serves
+      fake DNS, HTTP, and other services so you can watch the sample's network
+      behavior without giving it real reach.
+    </div>
+
+    <h2 id="install">Installing to disk</h2>
+    <p>RawOS boots as a live system. To install it permanently, open
+    <b>Install RawOS</b> from the menu. The installer walks you through:</p>
+    <ul>
+      <li><b>Location</b> and <b>Keyboard</b>, prefilled from the live session.</li>
+      <li><b>Disk</b>, the target to erase and install onto.</li>
+      <li><b>Account</b>, your username, password, and computer name.</li>
+      <li><b>Summary</b>, then it installs with a live progress bar.</li>
+    </ul>
+    <div class="warn">
+      <strong>The chosen disk is erased.</strong> Everything on the target disk is
+      permanently deleted. Double-check the disk on the Summary page before you
+      click Install.
+    </div>
+    <p>When it finishes, remove the installation medium and reboot into your new
+    system.</p>
+
+    <h2 id="desktop">Desktop and networking</h2>
+    <p>RawOS uses XFCE themed with Tokyo Night. Change the theme, wallpaper, and
+    panels from <b>Settings</b>. RawView keeps its own in-app theme picker,
+    independent of the desktop theme.</p>
+    <p>Networking is managed by NetworkManager; use the network icon in the panel
+    to connect. The firewall denies inbound connections by default while allowing
+    your outbound traffic so updates work. Per-analysis isolation is done at the
+    VM level, not on the host.</p>
+
+    <h2 id="clipboard">VM clipboard</h2>
+    <p>When you run RawOS itself as a guest, the SPICE guest agent
+    (<code>spice-vdagent</code>) is preinstalled, so copy and paste between your
+    host and RawOS works once the agent is running. If you are testing with the
+    bundled QEMU launcher, it wires the clipboard channel for you.</p>
+
+    <h2 id="trouble">Troubleshooting</h2>
+    <h3>RawView says the CPU is incompatible with the Qt version</h3>
+    <p>RawView's Qt build needs a modern CPU baseline (x86-64-v2). If you run RawOS
+    in a VM, give the guest a host-passthrough CPU rather than a generic emulated
+    one. Under QEMU, use <code>-cpu host</code>. In virt-manager, set the CPU model
+    to <b>host-passthrough</b> (or copy the host CPU configuration).</p>
+    <h3>No sound in a VM</h3>
+    <p>The OS is audio-ready (PulseAudio and a volume control are installed), but
+    the virtual machine needs an emulated sound card. Add one in your VM settings,
+    or use the bundled launcher which attaches an Intel HDA device.</p>
+    <h3>A website will not load but you are connected</h3>
+    <p>That is usually DNS. Check that <code>/etc/resolv.conf</code> points at the
+    systemd-resolved stub and that the network is managed by NetworkManager.</p>
+    <h3>The desktop went to sleep and things got stuck</h3>
+    <p>RawOS disables automatic sleep, blanking, and locking for analysis sessions.
+    If your VM host suspended the guest, resume it from the host controls.</p>
+
+    <footer>
+      RawOS is free software built on RawView and open-source tooling. Detonate
+      responsibly, snapshot often, and keep the network isolated.
+    </footer>
+  </main>
+</div>
+</body>
+</html>

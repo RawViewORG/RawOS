@@ -1,0 +1,110 @@
+#!/bin/bash
+# RawOS install engine. Does the proven manual flow:
+#   partition -> format -> mount -> rsync squashfs -> fstab -> grub -> user.
+# Two modes:
+#   interactive (default): prompts in a terminal.
+#   unattended: set RAWOS_UNATTENDED=1 and RAWOS_DISK/RAWOS_USER/RAWOS_PASS/
+#               RAWOS_HOSTNAME/RAWOS_TZ/RAWOS_KEYMAP (used by the GUI).
+set -uo pipefail
+B='\033[1;34m'; G='\033[1;32m'; R='\033[1;31m'; N='\033[0m'
+# When output is piped (e.g. into the GUI log), drop colors so they don't show up
+# as raw escape sequences. Colors stay for interactive terminal use.
+[ -t 1 ] || { B=''; G=''; R=''; N=''; }
+say(){ printf "\n${B}==> %s${N}\n" "$*"; }
+die(){ printf "${R}ERROR: %s${N}\n" "$*" >&2; [ "${RAWOS_UNATTENDED:-0}" = 1 ] || { echo; read -rp "Press Enter to exit..."; }; exit 1; }
+# Optional config file argument: the GUI passes settings this way so they survive
+# the pkexec/sudo privilege boundary (which strips the environment).
+if [ -n "${1:-}" ] && [ -f "$1" ]; then
+    set -a; . "$1"; set +a
+fi
+[ "$(id -u)" -eq 0 ] || die "Run this as root."
+
+TZ="${RAWOS_TZ:-UTC}"; KEYMAP="${RAWOS_KEYMAP:-us}"
+
+if [ "${RAWOS_UNATTENDED:-0}" = 1 ]; then
+    DISK="${RAWOS_DISK:?RAWOS_DISK not set}"
+    USERNAME="${RAWOS_USER:?RAWOS_USER not set}"
+    P1="${RAWOS_PASS:?RAWOS_PASS not set}"
+    HN="${RAWOS_HOSTNAME:-rawos}"
+else
+    printf "${G}\n  RawOS installer  -  reverse engineering, raw.${N}\n\n"
+    say "Disks detected:"; lsblk -dpno NAME,SIZE,MODEL | grep -vE 'loop|/dev/sr'
+    DEF="$(lsblk -dpno NAME,TYPE | awk '$2=="disk"{print $1; exit}')"
+    read -rp "Install onto which disk? [$DEF]: " DISK; DISK="${DISK:-$DEF}"
+    [ -b "$DISK" ] || die "$DISK is not a disk."
+    printf "${R}This ERASES everything on %s.${N}\n" "$DISK"
+    read -rp "Type YES to continue: " a; [ "$a" = "YES" ] || die "Cancelled."
+    read -rp "Choose a username: " USERNAME; [ -n "$USERNAME" ] || die "Username required."
+    while :; do read -rsp "Password: " P1; echo; read -rsp "Confirm : " P2; echo
+        [ -n "$P1" ] && [ "$P1" = "$P2" ] && break; echo "  (empty or mismatch)"; done
+    read -rp "Hostname [rawos]: " HN; HN="${HN:-rawos}"
+fi
+[ -b "$DISK" ] || die "$DISK is not a disk."
+
+# live source filesystem (squashfs)
+if mountpoint -q /rofs; then SRC=/rofs
+else
+    SQ=""
+    for c in /cdrom/casper/filesystem.squashfs /run/live/medium/casper/filesystem.squashfs /isodevice/casper/filesystem.squashfs; do
+        [ -f "$c" ] && { SQ="$c"; break; }; done
+    [ -n "$SQ" ] || die "Live filesystem not found."
+    mkdir -p /run/rawos-src; mount -t squashfs -o loop "$SQ" /run/rawos-src; SRC=/run/rawos-src
+fi
+
+T=/mnt/rawos-target; umount -R "$T" 2>/dev/null || true
+say "Partitioning $DISK (GPT: 512M ESP + ext4 root) ..."
+wipefs -a "$DISK" >/dev/null 2>&1 || true
+sgdisk --zap-all "$DISK" >/dev/null 2>&1 || true
+parted -s "$DISK" mklabel gpt || die "partition table"
+parted -s "$DISK" mkpart RAWOS_EFI fat32 1MiB 513MiB || die "esp partition"
+parted -s "$DISK" set 1 esp on
+parted -s "$DISK" mkpart RAWOS_ROOT ext4 513MiB 100% || die "root partition"
+partprobe "$DISK" 2>/dev/null; udevadm settle 2>/dev/null; sleep 2
+case "$DISK" in *[0-9]) P1D="${DISK}p1"; P2D="${DISK}p2";; *) P1D="${DISK}1"; P2D="${DISK}2";; esac
+[ -b "$P2D" ] || { udevadm settle 2>/dev/null; sleep 3; }
+[ -b "$P2D" ] || die "partition $P2D did not appear."
+
+say "Formatting ..."
+mkfs.vfat -F32 -n RAWOS_EFI "$P1D" >/dev/null || die "format esp"
+mkfs.ext4 -F -L RAWOS_ROOT "$P2D" >/dev/null || die "format root"
+mkdir -p "$T"; mount "$P2D" "$T" || die "mount root"
+mkdir -p "$T/boot/efi"; mount "$P1D" "$T/boot/efi" || die "mount esp"
+
+say "Copying RawOS to disk (a few minutes) ..."
+rsync -aHAXS --info=progress2 \
+  --exclude='/proc/*' --exclude='/sys/*' --exclude='/dev/*' --exclude='/run/*' \
+  --exclude='/tmp/*' --exclude='/mnt/*' --exclude='/media/*' --exclude='/cdrom/*' \
+  --exclude='/rofs/*' --exclude='/run/rawos-src/*' \
+  "$SRC"/ "$T"/ || die "copy failed (rsync $?)"
+mkdir -p "$T"/{proc,sys,dev,run,tmp,mnt,media,cdrom}
+
+say "Writing fstab ..."
+RU="$(blkid -s UUID -o value "$P2D")"; EU="$(blkid -s UUID -o value "$P1D")"
+printf 'UUID=%s /         ext4 errors=remount-ro 0 1\nUUID=%s /boot/efi vfat umask=0077 0 1\n' "$RU" "$EU" > "$T/etc/fstab"
+
+say "Bootloader, locale and your account ..."
+for f in proc sys dev dev/pts run; do mount --bind "/$f" "$T/$f" 2>/dev/null || true; done
+mount --bind /sys/firmware/efi/efivars "$T/sys/firmware/efi/efivars" 2>/dev/null || true
+cp -f /etc/resolv.conf "$T/etc/resolv.conf" 2>/dev/null || true
+echo "$HN" > "$T/etc/hostname"
+printf '127.0.0.1\tlocalhost\n127.0.1.1\t%s\n' "$HN" > "$T/etc/hosts"
+# timezone + keyboard
+if [ -e "$T/usr/share/zoneinfo/$TZ" ]; then ln -sf "/usr/share/zoneinfo/$TZ" "$T/etc/localtime"; echo "$TZ" > "$T/etc/timezone"; fi
+printf 'XKBMODEL="pc105"\nXKBLAYOUT="%s"\nXKBVARIANT=""\nXKBOPTIONS=""\n' "$KEYMAP" > "$T/etc/default/keyboard"
+# account
+chroot "$T" useradd -m -s /bin/bash -G sudo,adm,cdrom,dip,plugdev,libvirt,kvm,wireshark "$USERNAME" 2>/dev/null || \
+  chroot "$T" useradd -m -s /bin/bash -G sudo "$USERNAME" || die "create user"
+printf '%s:%s\n' "$USERNAME" "$P1" | chroot "$T" chpasswd || die "set password"
+# drop live-only bits and install grub (removable so it boots without an NVRAM entry too)
+chroot "$T" apt-get purge -y casper calamares calamares-settings-ubuntu-common >/dev/null 2>&1 || true
+chroot "$T" grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=RawOS --recheck 2>/dev/null || true
+chroot "$T" grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable --recheck || die "grub-install"
+chroot "$T" update-grub 2>/dev/null || chroot "$T" grub-mkconfig -o /boot/grub/grub.cfg || die "grub config"
+chroot "$T" update-initramfs -u -k all 2>/dev/null || true
+
+say "Cleaning up ..."
+umount "$T/sys/firmware/efi/efivars" 2>/dev/null || true
+for f in run dev/pts dev sys proc boot/efi; do umount -lf "$T/$f" 2>/dev/null || true; done
+umount -R "$T" 2>/dev/null || umount -lR "$T" 2>/dev/null || true
+printf "\n${G}RAWOS_INSTALL_OK${N} RawOS is installed on %s.\n" "$DISK"
+[ "${RAWOS_UNATTENDED:-0}" = 1 ] || read -rp "Press Enter to close..."

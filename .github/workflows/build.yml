@@ -1,0 +1,66 @@
+name: build-rawos
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_appliances:
+        description: "Also build .qcow2/.ova appliances"
+        type: boolean
+        default: false
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write   # needed to attach artifacts to a release on tag builds
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax-check build scripts
+        run: make check
+      - name: shellcheck
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          shellcheck -S warning build/*.sh chroot-hooks/*.sh patches/*.sh || true
+
+  iso:
+    needs: lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive   # pulls vendor/RawView
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache
+          df -h /
+      - name: Install host build deps
+        run: sudo make deps
+      - name: Build ISO
+        run: sudo make iso
+      - name: Build appliances
+        if: ${{ inputs.build_appliances }}
+        run: sudo make appliances
+      - name: Checksums
+        run: cd out && sha256sum * > SHA256SUMS || true
+      - name: Upload artifacts (CI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rawos-images
+          path: |
+            out/*.iso
+            out/*.qcow2
+            out/*.ova
+            out/SHA256SUMS
+          retention-days: 7
+          if-no-files-found: warn
+      # NOTE: images can exceed the ~2 GB GitHub Release asset cap. For tagged
+      # releases, publish SHA256SUMS here and host the large images on an
+      # external mirror/torrent (see README "Notes").
+      - name: Attach checksums to release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/SHA256SUMS
