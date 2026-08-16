@@ -7,13 +7,15 @@
 #   1. rawview/config.py::_env_files() also reads /etc/rawview/rawview.env
 #      (lowest priority) so RawOS can preset GHIDRA_INSTALL_DIR / JAVA_EXECUTABLE
 #      / RAWVIEW_THEME system-wide.
-#   2. Bump the stale default `anthropic_model` to a current model id.
+#   2. Pin the default `anthropic_model` to the id RawOS ships with. This is a no-op
+#      when upstream RawView already defaults to that model; it exists so a build can
+#      override the model via RAWVIEW_ANTHROPIC_MODEL and to catch upstream drift.
 #
 # Uses Python for precise, idempotent edits rather than fragile line patches.
 set -euo pipefail
 
 SRC="${1:?usage: apply-rawview-patches.sh <rawview_src_dir> [anthropic_model]}"
-MODEL="${2:-claude-opus-4-8}"
+MODEL="${2:-claude-opus-5}"
 CONFIG="$SRC/rawview/config.py"
 
 [ -f "$CONFIG" ] || { echo "ERROR: $CONFIG not found" >&2; exit 1; }

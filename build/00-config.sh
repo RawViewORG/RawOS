@@ -6,7 +6,7 @@ set -euo pipefail
 # ── Identity ────────────────────────────────────────────────────────────────
 export RAWOS_NAME="RawOS"
 export RAWOS_ID="rawos"
-export RAWOS_VERSION="${RAWOS_VERSION:-0.1.0}"
+export RAWOS_VERSION="${RAWOS_VERSION:-0.2.0}"
 export RAWOS_CODENAME="${RAWOS_CODENAME:-Ghostwire}"
 export RAWOS_HOME_URL="https://github.com/codeminute-the-dev/RawView"
 export RAWOS_DISCORD_URL="https://discord.gg/aHRjNzhNgk"
@@ -21,8 +21,8 @@ export GHIDRA_VERSION="${GHIDRA_VERSION:-12.0.4}"
 export GHIDRA_BUILD_DATE="${GHIDRA_BUILD_DATE:-20260303}"   # part of the release asset name
 export TEMURIN_MAJOR="${TEMURIN_MAJOR:-21}"
 # Canonical RawView version RawOS ships (see plan note about version drift).
-export RAWVIEW_VERSION="${RAWVIEW_VERSION:-1.2.4}"
-export RAWVIEW_ANTHROPIC_MODEL="${RAWVIEW_ANTHROPIC_MODEL:-claude-opus-4-8}"
+export RAWVIEW_VERSION="${RAWVIEW_VERSION:-1.2.5}"
+export RAWVIEW_ANTHROPIC_MODEL="${RAWVIEW_ANTHROPIC_MODEL:-claude-opus-5}"
 
 # ── Theme / branding ────────────────────────────────────────────────────────
 export RAWOS_THEME="tokyo_night"
