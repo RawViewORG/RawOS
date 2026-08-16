@@ -18,7 +18,7 @@ if [ "${#miss[@]}" -gt 0 ]; then
   Install: apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools"
 fi
 
-HOOKS=(10-apt-packages 20-github-tools 30-pip-tools 40-ghidra-jdk 50-rawview 60-branding 70-safety 75-usability)
+HOOKS=(10-apt-packages 20-github-tools 30-pip-tools 35-local-llm 40-ghidra-jdk 50-rawview 60-branding 70-safety 75-usability)
 # ONLY_HOOKS=50,60,70 runs just those hooks against the existing chroot (staging +
 # cleanup + ISO assembly still happen). Great for iterating on branding without
 # re-running apt/pip/ghidra/PyInstaller.  e.g. sudo ONLY_HOOKS=60,70 make iso

@@ -21,7 +21,7 @@ export GHIDRA_VERSION="${GHIDRA_VERSION:-12.0.4}"
 export GHIDRA_BUILD_DATE="${GHIDRA_BUILD_DATE:-20260303}"   # part of the release asset name
 export TEMURIN_MAJOR="${TEMURIN_MAJOR:-21}"
 # Canonical RawView version RawOS ships (see plan note about version drift).
-export RAWVIEW_VERSION="${RAWVIEW_VERSION:-1.2.5}"
+export RAWVIEW_VERSION="${RAWVIEW_VERSION:-1.3.0}"
 export RAWVIEW_ANTHROPIC_MODEL="${RAWVIEW_ANTHROPIC_MODEL:-claude-opus-5}"
 
 # ── Theme / branding ────────────────────────────────────────────────────────
