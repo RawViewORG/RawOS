@@ -163,8 +163,25 @@ log "Building squashfs (slow)..."
 chroot "$CHROOT_DIR" dpkg-query -W --showformat='${Package} ${Version}\n' > "$IMAGE_DIR/casper/filesystem.manifest"
 # Keep /boot (kernel + initrd) IN the squashfs so an installed system is bootable
 # (the live boot uses the separate copies in /casper). Only exclude the build tree.
+# mksquashfs otherwise runs one compressor thread per CPU and sizes its cache from
+# TOTAL RAM (~25%), which takes no account of what else is running - enough to OOM a
+# busy desktop mid-build. Size it from AVAILABLE memory and cap the thread count.
+# Override with SQUASHFS_PROCS / SQUASHFS_MEM.
+if [ -z "${SQUASHFS_PROCS:-}" ]; then
+    SQUASHFS_PROCS=$(nproc)
+    [ "$SQUASHFS_PROCS" -gt 4 ] && SQUASHFS_PROCS=4
+fi
+if [ -z "${SQUASHFS_MEM:-}" ]; then
+    avail_mb=$(( $(awk '/^MemAvailable:/{print $2}' /proc/meminfo) / 1024 ))
+    SQUASHFS_MEM=$(( avail_mb / 4 ))          # a quarter of what is actually free
+    [ "$SQUASHFS_MEM" -lt 512 ] && SQUASHFS_MEM=512
+    [ "$SQUASHFS_MEM" -gt 4096 ] && SQUASHFS_MEM=4096
+    SQUASHFS_MEM="${SQUASHFS_MEM}M"
+fi
+log "squashfs: ${SQUASHFS_PROCS} threads, ${SQUASHFS_MEM} cache"
 mksquashfs "$CHROOT_DIR" "$IMAGE_DIR/casper/filesystem.squashfs" \
-    -noappend -comp zstd -wildcards -e 'rawos-build/*'
+    -noappend -comp zstd -wildcards -e 'rawos-build/*' \
+    -processors "$SQUASHFS_PROCS" -mem "$SQUASHFS_MEM"
 printf '%s' "$(du -sx --block-size=1 "$CHROOT_DIR" | cut -f1)" > "$IMAGE_DIR/casper/filesystem.size"
 
 # .disk metadata
