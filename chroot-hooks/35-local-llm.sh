@@ -67,6 +67,13 @@ fi
 if ! systemctl is-active --quiet ollama; then
     echo "Starting the local model server ..."
     sudo systemctl start ollama
+    # `systemctl start` returns as soon as the process forks; the HTTP API takes
+    # a moment to bind. Wait for it so the `ollama list` below doesn't race it
+    # and wrongly report "no models" while the server is still coming up.
+    for _ in $(seq 1 20); do
+        curl -fsS http://127.0.0.1:11434/api/version >/dev/null 2>&1 && break
+        sleep 0.5
+    done
 fi
 echo
 echo "Local model server: http://localhost:11434/v1"

@@ -4,7 +4,8 @@
 # first-run welcome app with the safety warning.
 set -euo pipefail
 source /rawos-build/chroot.env
-log() { printf '\033[1;34m[70-safety]\033[0m %s\n' "$*"; }
+log()  { printf '\033[1;34m[70-safety]\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m[70-safety]\033[0m %s\n' "$*" >&2; }
 
 export DEBIAN_FRONTEND=noninteractive
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.1 "Ghostwire"
+
+### Fixes
+
+- `70-safety` chroot hook called an undefined `warn()` while installing offline docs;
+  under `set -euo pipefail` this would abort the whole hook (build failure) the moment
+  `branding/docs/index.html` was ever missing or renamed. Added the missing `warn()`
+  definition, matching every other hook.
+- `rawos-local-llm` could report "No models yet" right after starting the Ollama
+  server, even with models installed: `systemctl start` returns as soon as the
+  process forks, before the HTTP API is actually listening, so the immediate
+  `ollama list` could race it. The helper now waits (up to ~10s) for the API to
+  respond before checking installed models.
+
 ## 0.2.0 "Ghostwire"
 
 ### Offline AI: local models, no key, no network
