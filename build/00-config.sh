@@ -6,7 +6,7 @@ set -euo pipefail
 # ── Identity ────────────────────────────────────────────────────────────────
 export RAWOS_NAME="RawOS"
 export RAWOS_ID="rawos"
-export RAWOS_VERSION="${RAWOS_VERSION:-0.2.0}"
+export RAWOS_VERSION="${RAWOS_VERSION:-0.2.1}"
 export RAWOS_CODENAME="${RAWOS_CODENAME:-Ghostwire}"
 export RAWOS_HOME_URL="https://github.com/codeminute-the-dev/RawView"
 export RAWOS_DISCORD_URL="https://discord.gg/aHRjNzhNgk"
