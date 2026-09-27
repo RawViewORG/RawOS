@@ -10,22 +10,46 @@ set -euo pipefail
 source /rawos-build/chroot.env
 log()  { printf '\033[1;34m[35-llm]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[35-llm]\033[0m %s\n' "$*" >&2; }
+die()  { printf '\033[1;31m[35-llm] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
 CACHE="/rawos-build/cache"
 mkdir -p "$CACHE" /usr/local/bin /usr/share/applications
 export DEBIAN_FRONTEND=noninteractive
 
-OLLAMA_TGZ="$CACHE/ollama-linux-amd64.tgz"
-if [ ! -s "$OLLAMA_TGZ" ]; then
-    log "downloading Ollama ..."
-    curl -fL --retry 3 --connect-timeout 30 \
-        -o "$OLLAMA_TGZ" \
-        "https://ollama.com/download/ollama-linux-amd64.tgz" || warn "Ollama download failed"
+# Resolve the asset from the release API rather than hardcoding a filename: the
+# ollama.com/download/... shortlink 404s whenever upstream renames its assets, and it
+# already has once (.tgz -> .tar.zst). Accept either compression.
+gh_asset() {  # gh_asset <owner/repo> <regex> -> first matching browser_download_url
+    curl -fsSL --retry 3 --connect-timeout 30 -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/$1/releases/latest" 2>/dev/null \
+        | grep -o '"browser_download_url":[[:space:]]*"[^"]*"' | cut -d'"' -f4 \
+        | grep -iE "$2" | head -1
+}
+
+OLLAMA_URL="$(gh_asset ollama/ollama 'ollama-linux-amd64\.tar\.zst$')"
+[ -n "$OLLAMA_URL" ] || OLLAMA_URL="$(gh_asset ollama/ollama 'ollama-linux-amd64\.(tgz|tar\.gz)$')"
+
+OLLAMA_ARCHIVE=""
+if [ -n "$OLLAMA_URL" ]; then
+    OLLAMA_ARCHIVE="$CACHE/$(basename "$OLLAMA_URL")"
+    if [ ! -s "$OLLAMA_ARCHIVE" ]; then
+        log "downloading Ollama: $(basename "$OLLAMA_URL") ..."
+        curl -fL --retry 3 --connect-timeout 30 -o "$OLLAMA_ARCHIVE" "$OLLAMA_URL" \
+            || { warn "Ollama download failed"; rm -f "$OLLAMA_ARCHIVE"; }
+    else
+        log "cached: $(basename "$OLLAMA_ARCHIVE")"
+    fi
+else
+    warn "could not resolve an Ollama linux-amd64 asset from the release API"
 fi
 
-if [ -s "$OLLAMA_TGZ" ]; then
+if [ -s "$OLLAMA_ARCHIVE" ]; then
     log "installing Ollama into /usr ..."
-    tar -C /usr -xzf "$OLLAMA_TGZ"
+    case "$OLLAMA_ARCHIVE" in
+        *.tar.zst) tar -C /usr --zstd -xf "$OLLAMA_ARCHIVE" ;;
+        *)         tar -C /usr -xzf "$OLLAMA_ARCHIVE" ;;
+    esac
+    command -v ollama >/dev/null 2>&1 || die "Ollama archive extracted but no ollama binary landed in PATH"
     # A system user keeps model blobs out of $HOME and off the live squashfs.
     if ! id ollama >/dev/null 2>&1; then
         useradd -r -s /bin/false -U -m -d /usr/share/ollama ollama || true
@@ -94,6 +118,7 @@ echo "then Refresh next to the model box and pick one."
 HELPER
 chmod 755 /usr/local/bin/rawos-local-llm
 
+if command -v ollama >/dev/null 2>&1; then
 cat > /usr/share/applications/rawos-local-llm.desktop <<EOF
 [Desktop Entry]
 Type=Application
@@ -104,5 +129,13 @@ Icon=utilities-terminal
 Categories=Development;Utility;
 Terminal=false
 EOF
+else
+    rm -f /usr/share/applications/rawos-local-llm.desktop
+    warn "no desktop entry written: Ollama is not installed in this image"
+fi
 
-log "local LLM support ready (server disabled until first use)"
+if command -v ollama >/dev/null 2>&1; then
+    log "local LLM support ready: $(ollama --version 2>/dev/null | head -1) (server disabled until first use)"
+else
+    warn "local LLM support NOT installed; this image is cloud-only"
+fi
