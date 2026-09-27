@@ -179,9 +179,12 @@ if [ -z "${SQUASHFS_MEM:-}" ]; then
     SQUASHFS_MEM="${SQUASHFS_MEM}M"
 fi
 log "squashfs: ${SQUASHFS_PROCS} threads, ${SQUASHFS_MEM} cache"
+# -e swallows every remaining argument as an exclude pattern, so it MUST come last;
+# options placed after it are silently parsed as filenames and ignored.
 mksquashfs "$CHROOT_DIR" "$IMAGE_DIR/casper/filesystem.squashfs" \
-    -noappend -comp zstd -wildcards -e 'rawos-build/*' \
-    -processors "$SQUASHFS_PROCS" -mem "$SQUASHFS_MEM"
+    -noappend -comp zstd -wildcards \
+    -processors "$SQUASHFS_PROCS" -mem "$SQUASHFS_MEM" \
+    -e 'rawos-build/*'
 printf '%s' "$(du -sx --block-size=1 "$CHROOT_DIR" | cut -f1)" > "$IMAGE_DIR/casper/filesystem.size"
 
 # .disk metadata

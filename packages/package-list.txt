@@ -135,6 +135,7 @@ pkg-config
 
 # ── Convenience / dev ────────────────────────────────────────────────────────
 git
+zstd                       # extracts Ollama's .tar.zst release asset (35-local-llm)
 curl
 wget
 tmux
